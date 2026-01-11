@@ -1,0 +1,123 @@
+version: "2"
+run:
+  modules-download-mode: vendor
+  tests: true
+  timeout: 5m
+output:
+  formats:
+    text:
+      path: stdout
+  print-absolute-path: false
+  print-linter-name: true
+  path-prefix: "~/"
+linters:
+  default: all
+  disable:
+    - dupl
+    - err113
+    - exhaustive
+    - exhaustruct
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - godox
+    - interfacebloat
+    - ireturn
+    - maintidx
+    - mnd
+    - nestif
+    - nonamedreturns
+    - paralleltest
+    - perfsprint
+    - protogetter
+    - tagalign
+    - tagliatelle
+    - testifylint
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - noctx
+    - forbidigo
+
+  settings:
+    cyclop:
+      max-complexity: 108
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+            - github.com
+            - golang.org
+            - google.golang.org
+            - gopkg.in
+          deny:
+            - pkg: emperror.dev/errors
+              desc: should be replaced by "github.com/pkg/errors"
+            - pkg: encoding/json
+              desc: use 'github.com/json-iterator/go' for better performance
+    funlen:
+      lines: 300
+      statements: 170
+    gocyclo:
+      min-complexity: 90
+    gosec:
+      excludes:
+        - G115
+        - G306
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    nlreturn:
+      block-size: 2
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+    wsl:
+      allow-cuddle-declarations: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - path: (.+)\.go$
+        text: Using the variable on range scope .* in function literal
+    paths:
+      - ansible
+      - charts
+      - deploy
+      - generator
+      - docs
+      - vendor
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - Standard
+        - Default
+  exclusions:
+    generated: lax
+    paths:
+      - ansible
+      - charts
+      - deploy
+      - generator
+      - docs
+      - vendor
+      - third_party$
+      - builtin$
+      - examples$
