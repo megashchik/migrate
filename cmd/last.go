@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/megashchik/migrate/config"
 )
@@ -17,23 +19,12 @@ func Last(c *config.Config) error {
 
 	defer closeDb(db)
 
-	hasDescription, err := hasDescriptionColumn(db, c)
+	query, values, err := getQuery(c)
 	if err != nil {
 		return err
 	}
 
-	query := "SELECT version, '' as description FROM %s ORDER BY version DESC LIMIT 1"
-	if hasDescription {
-		query = "SELECT version, description FROM %s ORDER BY version DESC LIMIT 1"
-	}
-
-	query = fmt.Sprintf(query, c.FullTableName)
-
-	var version int64
-
-	var description string
-
-	err = db.QueryRow(query).Scan(&version, &description)
+	err = db.QueryRow(query).Scan(values...)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		fmt.Println("no migrations applied yet")
@@ -42,17 +33,59 @@ func Last(c *config.Config) error {
 		return fmt.Errorf("failed to get last version: %w", err)
 	}
 
-	printVersion(hasDescription, version, description)
+	fmt.Println(values...)
 
 	return nil
 }
 
-// printVersion prints the migration version and description.
-func printVersion(hasDescription bool, version int64, description string) {
-	if hasDescription {
-		fmt.Printf("%d: %s\n", version, description)
-		return
+func getQuery(c *config.Config) (string, []any, error) {
+	var version int64
+
+	var description sql.NullString
+
+	var ts sql.NullTime
+
+	values := []any{&version}
+	params := []string{"version"}
+
+	if c.Desc {
+		params = append(params, "description")
+		values = append(values, &description)
 	}
 
-	fmt.Println(version)
+	if c.Ts {
+		params = append(params, "applied_at")
+		values = append(values, &ts)
+	}
+
+	switch c.Command {
+	case config.CommandLast:
+		return fmt.Sprintf("SELECT %s FROM %s ORDER BY version DESC LIMIT 1", strings.Join(params, ", "), c.FullTableName), values, nil
+	case config.CommandList:
+		return fmt.Sprintf("SELECT %s FROM %s ORDER BY version DESC", strings.Join(params, ", "), c.FullTableName), values, nil
+	default:
+		return "", nil, fmt.Errorf("unknown command: %s", c.Command)
+	}
+}
+
+type values struct {
+	Version     *int64
+	Description *string
+	Ts          *time.Time
+}
+
+func (v values) values() []any {
+	result := make([]any, 0, 3)
+
+	result = append(result, &v.Version)
+
+	if v.Description != nil {
+		result = append(result, &v.Description)
+	}
+
+	if v.Ts != nil {
+		result = append(result, &v.Ts)
+	}
+
+	return result
 }

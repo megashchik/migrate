@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/megashchik/migrate/config"
 )
@@ -17,17 +15,10 @@ func List(c *config.Config) error {
 
 	defer closeDb(db)
 
-	hasDescription, err := hasDescriptionColumn(db, c)
+	query, values, err := getQuery(c)
 	if err != nil {
 		return err
 	}
-
-	query := "SELECT version, '' as description FROM %s ORDER BY version"
-	if hasDescription {
-		query = "SELECT version, description FROM %s ORDER BY version"
-	}
-
-	query = fmt.Sprintf(query, c.FullTableName)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -39,16 +30,12 @@ func List(c *config.Config) error {
 	found := false
 
 	for rows.Next() {
-		var version int64
-
-		var description string
-
-		err = rows.Scan(&version, &description)
+		err = rows.Scan(values...)
 		if err != nil {
 			return fmt.Errorf("failed to read row, err: %w", err)
 		}
 
-		printVersion(hasDescription, version, description)
+		fmt.Println(values...)
 
 		found = true
 	}
@@ -63,21 +50,4 @@ func List(c *config.Config) error {
 	}
 
 	return nil
-}
-
-// hasDescriptionColumn returns true if table has description column.
-func hasDescriptionColumn(db *sql.DB, c *config.Config) (bool, error) {
-	var hasDescription bool
-
-	query := `SELECT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_schema=$1 AND (table_name=$2 or table_name=LOWER($2)) AND column_name='description'
-)`
-
-	err := db.QueryRow(query, strings.Trim(c.Schema, `"`), strings.Trim(c.Table, `"`)).Scan(&hasDescription)
-	if err != nil {
-		return false, fmt.Errorf("failed to check table, err: %w", err)
-	}
-
-	return hasDescription, nil
 }

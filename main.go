@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/megashchik/migrate/cmd"
+	"github.com/megashchik/migrate/config"
 )
 
 func main() {
@@ -13,17 +14,17 @@ func main() {
 	var err error
 
 	switch c.Command {
-	case CommandNew:
+	case config.CommandNew:
 		err = cmd.New(c)
-	case CommandList:
+	case config.CommandList:
 		err = cmd.List(c)
-	case CommandLast:
+	case config.CommandLast:
 		err = cmd.Last(c)
-	case CommandUp:
+	case config.CommandUp:
 		err = cmd.Up(c)
-	case CommandHelp:
+	case config.CommandHelp:
 		cmd.Help(c)
-	case CommandVersion:
+	case config.CommandVersion:
 		cmd.Version()
 	default:
 		err = cmd.Up(c)

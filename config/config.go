@@ -1,5 +1,14 @@
 package config
 
+const (
+	CommandUp      = "up"
+	CommandNew     = "new"
+	CommandList    = "list"
+	CommandLast    = "last"
+	CommandHelp    = "help"
+	CommandVersion = "version"
+)
+
 type Config struct {
 	Conn  string
 	Dir   string
@@ -7,8 +16,9 @@ type Config struct {
 
 	// extra options
 	Short         bool
-	Table         string
 	Desc          bool
+	Ts            bool
+	Table         string
 	Schema        string
 	FullTableName string
 	EnvURL        string

@@ -29,34 +29,25 @@ func Up(c *config.Config) error {
 
 	defer closeDb(db)
 
-	dimension := "BIGINT"
-	if c.Short {
-		dimension = "INT"
-	}
-
-	var createTableQuery string
-
 	var insertTableQuery string
 
 	var descriptionRegex *regexp.Regexp
 
 	if c.Desc {
 		descriptionRegex = regexp.MustCompile(`--\s*desc:\s*(.*)`)
-		createTableQuery = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (version %s PRIMARY KEY, description text)", c.FullTableName, dimension)
 		insertTableQuery = fmt.Sprintf("INSERT INTO %s (version, description) VALUES ($1, $2)", c.FullTableName)
 	} else {
-		createTableQuery = fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (version %s PRIMARY KEY)", c.FullTableName, dimension)
 		insertTableQuery = fmt.Sprintf("INSERT INTO %s (version) VALUES ($1)", c.FullTableName)
-	}
-
-	_, err = db.Exec(createTableQuery)
-	if err != nil {
-		return fmt.Errorf("failed to create table, err: %w", err)
 	}
 
 	files, err := filepath.Glob(c.Dir + "/*.sql")
 	if err != nil {
 		return fmt.Errorf("failed to get files: %w", err)
+	}
+
+	err = createTable(db, c)
+	if err != nil {
+		return err
 	}
 
 	migrations := make([]fileVersion, 0, len(files))
@@ -216,4 +207,69 @@ func closeDb(db *sql.DB) {
 	if err != nil {
 		log.Printf("failed to close db: %s\n", err)
 	}
+}
+
+// createTable creates a migration table if not exists, or updates it.
+func createTable(db *sql.DB, c *config.Config) (err error) {
+	createTableQuery := `CREATE TABLE IF NOT EXISTS %s (%s)`
+
+	params := []string{"version BIGINT PRIMARY KEY"}
+	if c.Short {
+		params[0] = "version INT PRIMARY KEY"
+	}
+
+	if c.Desc {
+		params = append(params, "description TEXT")
+	}
+
+	if c.Ts {
+		params = append(params, "applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP")
+	}
+
+	createTableQuery = fmt.Sprintf(createTableQuery, c.FullTableName, strings.Join(params, ", "))
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin tx of create table: %w", err)
+	}
+
+	defer func() {
+		txErr := tx.Rollback()
+		if errors.Is(txErr, sql.ErrTxDone) {
+			return
+		}
+
+		err = errors.Join(err, txErr)
+	}()
+
+	_, err = tx.Exec(createTableQuery)
+	if err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
+	}
+
+	if c.Desc {
+		_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS description TEXT", c.FullTableName))
+		if err != nil {
+			return fmt.Errorf("failed to add description column: %w", err)
+		}
+	}
+
+	if c.Ts {
+		_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ", c.FullTableName))
+		if err != nil {
+			return fmt.Errorf("failed to add applied_at column: %w", err)
+		}
+
+		_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s ALTER COLUMN applied_at SET DEFAULT CURRENT_TIMESTAMP", c.FullTableName))
+		if err != nil {
+			return fmt.Errorf("failed to set default for applied_at: %w", err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit tx of create table: %w", err)
+	}
+
+	return nil
 }

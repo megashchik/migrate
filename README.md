@@ -9,6 +9,7 @@ A minimalist, CLI tool for PostgreSQL schema migrations written in Go.
 - **Pure SQL**: No specific markers like `-- migrate:up` required. If it's a valid SQL, it works.
 - **Flexible Versioning**: Supports Unix timestamps, `YYYYMMDD`, and incremental numbers (`000001`).
 - **Description Support**: Automatically extracts descriptions from SQL comments (`-- desc: text`) or filenames.
+- **Timestamps**: Automatically stores migration timestamps in the table if `-ts` flag is set on first run.
 - **Single Binary**: No dependencies. Built with Go standard library and `pq` driver.
 - **Safety First**: Each migration runs in a single transaction.
 

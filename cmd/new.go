@@ -105,6 +105,7 @@ func generateVersionPrefix(c *config.Config) (string, error) {
 
 	if newVersion <= lastVersion {
 		log.Println("version overflow, will be increased")
+
 		newVersion = lastVersion + 1
 	}
 

@@ -10,26 +10,18 @@ import (
 	"github.com/megashchik/migrate/config"
 )
 
-const (
-	CommandUp      = "up"
-	CommandNew     = "new"
-	CommandList    = "list"
-	CommandLast    = "last"
-	CommandHelp    = "help"
-	CommandVersion = "version"
-)
-
 // initConfig returns the application configuration.
 func initConfig() *config.Config {
 	c := &config.Config{}
 
 	flag.StringVar(&c.Conn, "conn", "", "")
-	flag.StringVar(&c.Table, "t", "schema_migrations", "")
 	flag.StringVar(&c.Dir, "dir", "./migrations", "")
 	flag.BoolVar(&c.Extra, "extra", false, "")
 
+	flag.StringVar(&c.Table, "t", "schema_migrations", "")
 	flag.BoolVar(&c.Short, "short", false, "")
 	flag.BoolVar(&c.Desc, "desc", false, "")
+	flag.BoolVar(&c.Ts, "ts", false, "")
 	flag.StringVar(&c.Schema, "schema", "public", "")
 	flag.StringVar(&c.EnvURL, "env-url", "DATABASE_URL", "")
 	flag.StringVar(&c.Format, "f", "T", "")

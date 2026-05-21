@@ -14,6 +14,7 @@ func Help(c *config.Config) {
 		fmt.Print(`Advanced Features (Flags):
   -t        string   Metadata table name (default: "schema_migrations")
   -desc              Enable 'description' column support in the metadata table
+  -ts                Enable 'applied_at' column support in the metadata table
   -env-url  string   Custom environment variable for connection (default: "DATABASE_URL")
   -short             Use INT4 instead of INT8 for the version column
 
