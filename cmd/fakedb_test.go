@@ -14,7 +14,7 @@ import (
 	"io"
 	"maps"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -370,8 +370,8 @@ func splitStatements(query string) []string {
 
 func tableKey(name string) string {
 	name = strings.TrimSpace(strings.ReplaceAll(name, `"`, ""))
-	if i := strings.LastIndex(name, "."); i >= 0 {
-		name = name[i+1:]
+	if _, after, found := strings.CutLast(name, "."); found {
+		name = after
 	}
 	return name
 }
@@ -583,14 +583,12 @@ func selectRows(q string, s *dbState) (*queryResult, error) {
 		indexes[i] = i
 	}
 
-	sort.SliceStable(indexes, func(a, b int) bool {
-		va := ts.rows[indexes[a]][orderCol]
-		vb := ts.rows[indexes[b]][orderCol]
-		cmp := compareValues(va, vb)
+	slices.SortStableFunc(indexes, func(a, b int) int {
+		cmp := compareValues(ts.rows[a][orderCol], ts.rows[b][orderCol])
 		if orderDesc {
-			return cmp > 0
+			return -cmp
 		}
-		return cmp < 0
+		return cmp
 	})
 
 	if limit > 0 && limit < len(indexes) {

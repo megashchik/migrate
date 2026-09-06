@@ -126,7 +126,7 @@ func generateVersionPrefix(c *config.Config) (string, error) {
 // getLastVersion returns the last migration version in the directory.
 func getLastVersion(dir string) (int64, error) {
 	_, err := os.Stat(dir)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return 0, nil
 	}
 
@@ -157,15 +157,11 @@ func getLastVersion(dir string) (int64, error) {
 
 // getVersion returns the version of a migration file.
 func getVersion(filename string) (int64, error) {
-	base := filepath.Base(filename)
-	nameWithoutExt := strings.TrimSuffix(base, ".sql")
+	nameWithoutExt := strings.TrimSuffix(filepath.Base(filename), ".sql")
 
-	index := strings.Index(nameWithoutExt, "_")
-	if index == -1 {
-		index = len(nameWithoutExt)
-	}
+	before, _, _ := strings.Cut(nameWithoutExt, "_")
 
-	version, err := strconv.ParseInt(nameWithoutExt[:index], 10, 64)
+	version, err := strconv.ParseInt(before, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("can't get version from filename %s: %w", filename, err)
 	}

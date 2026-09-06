@@ -114,12 +114,10 @@ func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertT
 		}
 
 		if len(desc) == 0 {
-			base := filepath.Base(migration.file)
-			name := strings.TrimSuffix(base, ".sql")
+			name := strings.TrimSuffix(filepath.Base(migration.file), ".sql")
 
-			parts := strings.SplitN(name, "_", 2)
-			if len(parts) > 1 {
-				desc = parts[1]
+			if _, after, found := strings.Cut(name, "_"); found {
+				desc = after
 			}
 		}
 

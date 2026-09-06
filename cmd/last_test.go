@@ -98,7 +98,7 @@ func TestFormatValue(t *testing.T) {
 		val  any
 		want string
 	}{
-		{name: "int64", val: ptr(int64(20260906105144950)), want: "20260906105144950"},
+		{name: "int64", val: new(int64(20260906105144950)), want: "20260906105144950"},
 		{name: "valid string", val: &sql.NullString{Valid: true, String: "create users"}, want: "create users"},
 		{name: "invalid string shows dash", val: &sql.NullString{}, want: "-"},
 		{name: "valid time", val: &sql.NullTime{Valid: true, Time: fixed}, want: "2026-09-06T10:51:44Z"},
@@ -119,7 +119,7 @@ func TestFormatRow(t *testing.T) {
 	fixed := time.Date(2026, 9, 6, 10, 51, 44, 0, time.UTC)
 
 	values := []any{
-		ptr(int64(1)),
+		new(int64(1)),
 		&sql.NullString{Valid: true, String: "first"},
 		&sql.NullTime{Valid: true, Time: fixed},
 	}
@@ -138,7 +138,7 @@ func TestFormatRow(t *testing.T) {
 
 func TestFormatRowHandlesNulls(t *testing.T) {
 	got := formatRow([]any{
-		ptr(int64(7)),
+		new(int64(7)),
 		&sql.NullString{},
 		&sql.NullTime{},
 	})
@@ -147,4 +147,3 @@ func TestFormatRowHandlesNulls(t *testing.T) {
 	}
 }
 
-func ptr[T any](v T) *T { return &v }

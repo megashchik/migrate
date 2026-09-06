@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"path/filepath"
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -32,7 +32,7 @@ func TestGetMigrationFiles(t *testing.T) {
 			{file: filepath.Join(dir, "000001_a.sql"), version: 1},
 			{file: filepath.Join(dir, "000002_b.sql"), version: 2},
 		}
-		if !reflect.DeepEqual(got, want) {
+		if !slices.Equal(got, want) {
 			t.Errorf("getMigrationFiles = %v, want %v", got, want)
 		}
 	})
