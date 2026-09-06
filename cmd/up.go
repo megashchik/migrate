@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,11 +14,6 @@ import (
 
 	"github.com/megashchik/migrate/config"
 )
-
-type fileVersion struct {
-	file    string
-	version int64
-}
 
 // Up applies migrations from migration dir.
 func Up(c *config.Config) error {
@@ -144,26 +138,6 @@ func applyMigration(db *sql.DB, c *config.Config, migration fileVersion,
 	return nil
 }
 
-// getDB returns a database connection.
-func getDB(c *config.Config) (*sql.DB, error) {
-	if c.Conn == "" {
-		return nil, errors.New("please provide a conn string using -conn=postgres://user:password@host:port/database?sslmode=disable")
-	}
-
-	db, err := sql.Open("postgres", c.Conn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open connect to database: %w", err)
-	}
-
-	err = db.PingContext(context.Background())
-	if err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
-	}
-
-	return db, nil
-}
-
 // appliedVersions returns a map of applied versions migrations.
 func appliedVersions(db *sql.DB, c *config.Config) (map[int64]struct{}, error) {
 	//nolint:gosec
@@ -197,14 +171,6 @@ func appliedVersions(db *sql.DB, c *config.Config) (map[int64]struct{}, error) {
 	return versions, nil
 }
 
-// closeDb closes the database connection.
-func closeDb(db *sql.DB) {
-	err := db.Close()
-	if err != nil {
-		log.Printf("failed to close db: %s\n", err)
-	}
-}
-
 // createTable creates a migration table if not exists, or updates it.
 func createTable(db *sql.DB, c *config.Config) (err error) {
 	createTableQuery := `CREATE TABLE IF NOT EXISTS %s (%s)`
@@ -226,7 +192,7 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 
 	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin tx of create table: %w", err)
+		return fmt.Errorf("failed to begin transaction for migration table %s: %w", c.FullTableName, err)
 	}
 
 	defer func() {
@@ -236,19 +202,19 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 		}
 
 		if rollbackErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to rollback tx of create table: %w", rollbackErr))
+			err = errors.Join(err, fmt.Errorf("failed to rollback transaction for migration table %s: %w", c.FullTableName, rollbackErr))
 		}
 	}()
 
 	_, err = tx.ExecContext(context.Background(), createTableQuery)
 	if err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
+		return fmt.Errorf("failed to create migration table %s: %w", c.FullTableName, err)
 	}
 
 	if c.Desc {
 		_, err := tx.ExecContext(context.Background(), fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS description TEXT", c.FullTableName))
 		if err != nil {
-			return fmt.Errorf("failed to add description column: %w", err)
+			return fmt.Errorf("failed to add description column to migration table %s: %w", c.FullTableName, err)
 		}
 	}
 
@@ -256,59 +222,20 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 		_, err := tx.ExecContext(context.Background(), fmt.Sprintf(
 			"ALTER TABLE %s ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ", c.FullTableName))
 		if err != nil {
-			return fmt.Errorf("failed to add applied_at column: %w", err)
+			return fmt.Errorf("failed to add applied_at column to migration table %s: %w", c.FullTableName, err)
 		}
 
 		_, err = tx.ExecContext(context.Background(), fmt.Sprintf(
 			"ALTER TABLE %s ALTER COLUMN applied_at SET DEFAULT CURRENT_TIMESTAMP", c.FullTableName))
 		if err != nil {
-			return fmt.Errorf("failed to set default for applied_at: %w", err)
+			return fmt.Errorf("failed to set default for applied_at in migration table %s: %w", c.FullTableName, err)
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return fmt.Errorf("failed to commit tx of create table: %w", err)
+		return fmt.Errorf("failed to commit transaction for migration table %s: %w", c.FullTableName, err)
 	}
 
 	return nil
-}
-
-// getMigrationFiles returns the migration files in dir with their versions.
-func getMigrationFiles(dir string) ([]fileVersion, error) {
-	files, err := filepath.Glob(dir + "/*.sql")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get files: %w", err)
-	}
-
-	migrations := make([]fileVersion, 0, len(files))
-	for _, f := range files {
-		version, err := getVersion(f)
-		if err != nil {
-			return nil, err
-		}
-
-		migrations = append(migrations, fileVersion{f, version})
-	}
-
-	return migrations, nil
-}
-
-// duplicateVersions returns a sorted list of versions that appear more than once.
-func duplicateVersions(migrations []fileVersion) []string {
-	byVersion := make(map[int64][]string)
-	for _, m := range migrations {
-		byVersion[m.version] = append(byVersion[m.version], m.file)
-	}
-
-	var dupes []string
-	for version, files := range byVersion {
-		if len(files) > 1 {
-			dupes = append(dupes, fmt.Sprintf("%d: %s", version, strings.Join(files, ", ")))
-		}
-	}
-
-	slices.Sort(dupes)
-
-	return dupes
 }
