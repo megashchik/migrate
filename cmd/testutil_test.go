@@ -34,5 +34,6 @@ func captureStdout(f func()) (string, error) {
 	if _, err := io.Copy(&buf, r); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }

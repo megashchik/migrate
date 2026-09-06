@@ -146,4 +146,3 @@ func TestFormatRowHandlesNulls(t *testing.T) {
 		t.Errorf("formatRow with nulls = %q, want it to contain %q", got, "7  -  -")
 	}
 }
-

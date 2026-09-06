@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -25,7 +26,7 @@ func Last(c *config.Config) error {
 		return err
 	}
 
-	err = db.QueryRow(query).Scan(values...)
+	err = db.QueryRowContext(context.Background(), query).Scan(values...)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		fmt.Println("no migrations applied yet")

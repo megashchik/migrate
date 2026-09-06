@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/megashchik/migrate/config"
@@ -20,7 +21,7 @@ func List(c *config.Config) error {
 		return err
 	}
 
-	rows, err := db.Query(query)
+	rows, err := db.QueryContext(context.Background(), query)
 	if err != nil {
 		return fmt.Errorf("failed db query, err: %w", err)
 	}

@@ -53,12 +53,8 @@ func metaRows(t *testing.T, c *config.Config) []map[string]driver.Value {
 	if !ok {
 		t.Fatalf("metadata table %q not created", c.Table)
 	}
-	return ts.Rows()
-}
 
-func tableExists(t *testing.T, c *config.Config, name string) bool {
-	t.Helper()
-	return store(t, c).hasTable(name)
+	return ts.Rows()
 }
 
 func rowCount(t *testing.T, c *config.Config, table string) int {
@@ -70,6 +66,7 @@ func rowCount(t *testing.T, c *config.Config, table string) int {
 	if !ok {
 		t.Fatalf("table %q not found", table)
 	}
+
 	return ts.RowCount()
 }
 
@@ -310,6 +307,7 @@ func asVersion(v any) int64 {
 	if n, ok := v.(int64); ok {
 		return n
 	}
+
 	return 0
 }
 
@@ -317,5 +315,6 @@ func asString(v any) string {
 	if s, ok := v.(string); ok {
 		return s
 	}
+
 	return ""
 }

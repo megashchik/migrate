@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"cmp"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -46,7 +47,8 @@ func Up(c *config.Config) error {
 	}
 
 	if dupes := duplicateVersions(migrations); len(dupes) > 0 {
-		return fmt.Errorf("duplicate migration versions detected:\n%s\nresolve manually: rename or remove one of the files", strings.Join(dupes, "\n"))
+		return fmt.Errorf("duplicate migration versions detected:\n%s\nresolve manually: rename or remove one of the files",
+			strings.Join(dupes, "\n"))
 	}
 
 	err = createTable(db, c)
@@ -78,13 +80,15 @@ func Up(c *config.Config) error {
 }
 
 // applyMigration applies migration from file.
-func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertTableQuery string, descriptionRegex *regexp.Regexp) (err error) {
+func applyMigration(db *sql.DB, c *config.Config, migration fileVersion,
+	insertTableQuery string, descriptionRegex *regexp.Regexp,
+) (err error) {
 	content, err := os.ReadFile(migration.file)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin tx: %w", err)
 	}
@@ -100,7 +104,7 @@ func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertT
 		}
 	}()
 
-	_, err = tx.Exec(string(content))
+	_, err = tx.ExecContext(context.Background(), string(content))
 	if err != nil {
 		return fmt.Errorf("failed to execute migration file: %s err: %w", migration.file, err)
 	}
@@ -121,9 +125,9 @@ func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertT
 			}
 		}
 
-		_, err = tx.Exec(insertTableQuery, migration.version, desc)
+		_, err = tx.ExecContext(context.Background(), insertTableQuery, migration.version, desc)
 	} else {
-		_, err = tx.Exec(insertTableQuery, migration.version)
+		_, err = tx.ExecContext(context.Background(), insertTableQuery, migration.version)
 	}
 
 	if err != nil {
@@ -151,7 +155,7 @@ func getDB(c *config.Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open connect to database: %w", err)
 	}
 
-	err = db.Ping()
+	err = db.PingContext(context.Background())
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
@@ -165,7 +169,7 @@ func appliedVersions(db *sql.DB, c *config.Config) (map[int64]struct{}, error) {
 	//nolint:gosec
 	sql := fmt.Sprintf("SELECT version FROM %s ORDER BY version", c.FullTableName)
 
-	rows, err := db.Query(sql)
+	rows, err := db.QueryContext(context.Background(), sql)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get applied versions: %w", err)
 	}
@@ -220,7 +224,7 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 
 	createTableQuery = fmt.Sprintf(createTableQuery, c.FullTableName, strings.Join(params, ", "))
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(context.Background(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin tx of create table: %w", err)
 	}
@@ -236,25 +240,27 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 		}
 	}()
 
-	_, err = tx.Exec(createTableQuery)
+	_, err = tx.ExecContext(context.Background(), createTableQuery)
 	if err != nil {
 		return fmt.Errorf("failed to create table: %w", err)
 	}
 
 	if c.Desc {
-		_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS description TEXT", c.FullTableName))
+		_, err := tx.ExecContext(context.Background(), fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS description TEXT", c.FullTableName))
 		if err != nil {
 			return fmt.Errorf("failed to add description column: %w", err)
 		}
 	}
 
 	if c.Ts {
-		_, err := tx.Exec(fmt.Sprintf("ALTER TABLE %s ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ", c.FullTableName))
+		_, err := tx.ExecContext(context.Background(), fmt.Sprintf(
+			"ALTER TABLE %s ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ", c.FullTableName))
 		if err != nil {
 			return fmt.Errorf("failed to add applied_at column: %w", err)
 		}
 
-		_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s ALTER COLUMN applied_at SET DEFAULT CURRENT_TIMESTAMP", c.FullTableName))
+		_, err = tx.ExecContext(context.Background(), fmt.Sprintf(
+			"ALTER TABLE %s ALTER COLUMN applied_at SET DEFAULT CURRENT_TIMESTAMP", c.FullTableName))
 		if err != nil {
 			return fmt.Errorf("failed to set default for applied_at: %w", err)
 		}

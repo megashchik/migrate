@@ -15,6 +15,16 @@ tasks:
       - go vet ./...
       - go test ./... -count=1
 
+  lint:
+    desc: Run golangci-lint on all packages (requires golangci-lint >= 2.13 built with the module's Go version)
+    cmds:
+      - golangci-lint run
+
+  lint-fix:
+    desc: "Run golangci-lint and auto-fix what it can (formatters: gofmt, gofumpt, goimports, gci)"
+    cmds:
+      - golangci-lint run --fix
+
   test-verbose:
     desc: Run all tests with verbose output
     cmds:

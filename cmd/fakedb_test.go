@@ -37,6 +37,7 @@ func baseStore(dsn string) *dbState {
 		s = newDBState()
 		memoryDriver.stores[dsn] = s
 	}
+
 	return s
 }
 
@@ -60,29 +61,12 @@ type tableState struct {
 	rows    []map[string]driver.Value
 }
 
-func (t *tableState) fork() *tableState {
-	n := &tableState{columns: append([]*colState(nil), t.columns...)}
-	n.rows = make([]map[string]driver.Value, len(t.rows))
-	for i, r := range t.rows {
-		n.rows[i] = maps.Clone(r)
-	}
-	return n
-}
-
-func (t *tableState) column(name string) *colState {
-	for _, c := range t.columns {
-		if c.name == name {
-			return c
-		}
-	}
-	return nil
-}
-
 // ColumnType returns the emulated data type of a column.
 func (t *tableState) ColumnType(name string) string {
 	if c := t.column(name); c != nil {
 		return c.typ
 	}
+
 	return ""
 }
 
@@ -90,11 +74,32 @@ func (t *tableState) ColumnType(name string) string {
 func (t *tableState) Rows() []map[string]driver.Value {
 	out := make([]map[string]driver.Value, len(t.rows))
 	copy(out, t.rows)
+
 	return out
 }
 
 // RowCount returns the number of stored rows.
 func (t *tableState) RowCount() int { return len(t.rows) }
+
+func (t *tableState) column(name string) *colState {
+	for _, c := range t.columns {
+		if c.name == name {
+			return c
+		}
+	}
+
+	return nil
+}
+
+func (t *tableState) fork() *tableState {
+	n := &tableState{columns: append([]*colState(nil), t.columns...)}
+	n.rows = make([]map[string]driver.Value, len(t.rows))
+	for i, r := range t.rows {
+		n.rows[i] = maps.Clone(r)
+	}
+
+	return n
+}
 
 type dbState struct {
 	mu     sync.Mutex
@@ -106,28 +111,6 @@ func newDBState() *dbState {
 	return &dbState{tables: map[string]*tableState{}, now: time.Now}
 }
 
-func (s *dbState) fork() *dbState {
-	n := newDBState()
-	n.now = s.now
-	for k, t := range s.tables {
-		n.tables[k] = t.fork()
-	}
-	return n
-}
-
-func (s *dbState) publish(snap *dbState) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.tables = snap.tables
-}
-
-func (s *dbState) hasTable(name string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	_, ok := s.tables[tableKey(name)]
-	return ok
-}
-
 // TableNames returns the created tables (for store inspection in tests).
 func (s *dbState) TableNames() []string {
 	s.mu.Lock()
@@ -136,6 +119,7 @@ func (s *dbState) TableNames() []string {
 	for k := range s.tables {
 		names = append(names, k)
 	}
+
 	return names
 }
 
@@ -146,7 +130,24 @@ func (s *dbState) columnType(table, col string) *colState {
 	if !ok {
 		return nil
 	}
+
 	return t.column(col)
+}
+
+func (s *dbState) fork() *dbState {
+	n := newDBState()
+	n.now = s.now
+	for k, t := range s.tables {
+		n.tables[k] = t.fork()
+	}
+
+	return n
+}
+
+func (s *dbState) publish(snap *dbState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.tables = snap.tables
 }
 
 type fakeConn struct {
@@ -174,6 +175,7 @@ func (c *fakeConn) Ping(_ context.Context) error {
 	if strings.Contains(c.dsn, "ping-fail") {
 		return errors.New("connection refused")
 	}
+
 	return nil
 }
 
@@ -182,6 +184,7 @@ func (c *fakeConn) Exec(query string, args []driver.Value) (driver.Result, error
 	if err != nil {
 		return nil, err
 	}
+
 	return fakeResult{}, nil
 }
 
@@ -194,6 +197,7 @@ func (c *fakeConn) Query(query string, args []driver.Value) (driver.Rows, error)
 	if err != nil {
 		return nil, err
 	}
+
 	return &fakeRows{cols: res.cols, rows: res.rows}, nil
 }
 
@@ -206,6 +210,7 @@ func namedToValues(args []driver.NamedValue) []driver.Value {
 	for i, a := range args {
 		out[i] = a.Value
 	}
+
 	return out
 }
 
@@ -228,6 +233,7 @@ func (c *fakeConn) run(query string, args []driver.Value) (*queryResult, error) 
 				return rr, nil
 			}
 		}
+
 		return &queryResult{}, nil
 	}
 
@@ -244,6 +250,7 @@ func (c *fakeConn) run(query string, args []driver.Value) (*queryResult, error) 
 		}
 	}
 	c.store.publish(buf)
+
 	return &queryResult{}, nil
 }
 
@@ -265,6 +272,7 @@ func (c *fakeConn) execute(s *dbState, st string, args []driver.Value) (*queryRe
 		if err != nil {
 			return nil, err
 		}
+
 		return res, nil
 	case isConstSelect(trimmed):
 		return &queryResult{}, nil
@@ -288,6 +296,7 @@ func (s *fakeStmt) NumInput() int { return -1 }
 func (s *fakeStmt) Exec(args []driver.Value) (driver.Result, error) {
 	return s.conn.Exec(s.query, args)
 }
+
 func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 	return s.conn.Query(s.query, args)
 }
@@ -304,6 +313,7 @@ func (t *fakeTx) Commit() error {
 	t.done = true
 	t.conn.store.publish(t.conn.cur)
 	t.conn.cur = nil
+
 	return nil
 }
 
@@ -313,6 +323,7 @@ func (t *fakeTx) Rollback() error {
 	}
 	t.done = true
 	t.conn.cur = nil // discard the snapshot
+
 	return nil
 }
 
@@ -337,6 +348,7 @@ func (r *fakeRows) Next(dest []driver.Value) error {
 			dest[i] = nil
 		}
 	}
+
 	return nil
 }
 
@@ -365,6 +377,7 @@ func splitStatements(query string) []string {
 			out = append(out, strings.TrimSpace(p))
 		}
 	}
+
 	return out
 }
 
@@ -373,6 +386,7 @@ func tableKey(name string) string {
 	if _, after, found := strings.CutLast(name, "."); found {
 		name = after
 	}
+
 	return name
 }
 
@@ -398,6 +412,7 @@ func parseColDef(def string) *colState {
 	if strings.Contains(upper, "DEFAULT") {
 		c.defaultNow = strings.Contains(upper, "CURRENT_TIMESTAMP")
 	}
+
 	return c
 }
 
@@ -415,6 +430,7 @@ func splitTopLevel(s string) []string {
 			if depth == 0 {
 				parts = append(parts, cur.String())
 				cur.Reset()
+
 				continue
 			}
 		}
@@ -427,6 +443,7 @@ func splitTopLevel(s string) []string {
 			out = append(out, strings.TrimSpace(p))
 		}
 	}
+
 	return out
 }
 
@@ -434,7 +451,8 @@ var (
 	reCreate = regexp.MustCompile(`(?i)^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)\s*\((.*)\)\s*$`)
 	reAlter  = regexp.MustCompile(`(?i)^\s*ALTER\s+TABLE\s+([^\s(]+)\s+(.+)$`)
 	reInsert = regexp.MustCompile(`(?i)^\s*INSERT\s+INTO\s+([^\s(]+)\s*\(([^)]*)\)\s*VALUES\s*\(([^)]*)\)\s*$`)
-	reSelect = regexp.MustCompile(`(?i)^\s*SELECT\s+(.+?)\s+FROM\s+([^\s;]+)(?:\s+ORDER\s+BY\s+(\S+)(?:\s+(ASC|DESC))?)?(?:\s+LIMIT\s+(\d+))?\s*$`)
+	reSelect = regexp.MustCompile(`(?i)^\s*SELECT\s+(.+?)\s+FROM\s+([^\s;]+)` +
+		`(?:\s+ORDER\s+BY\s+(\S+)(?:\s+(ASC|DESC))?)?(?:\s+LIMIT\s+(\d+))?\s*$`)
 )
 
 func isCreateTable(q string) bool { return reCreate.MatchString(q) }
@@ -455,7 +473,7 @@ func insert(q string, s *dbState, args []driver.Value) error {
 	placeholders := splitTopLevel(m[3])
 
 	if len(placeholders) != len(cols) || len(cols) != len(args) {
-		return fmt.Errorf("could not determine data type of parameter")
+		return errors.New("could not determine data type of parameter")
 	}
 
 	rows := s.tables[tableKey(table)]
@@ -477,6 +495,7 @@ func insert(q string, s *dbState, args []driver.Value) error {
 	}
 
 	ts.rows = append(ts.rows, row)
+
 	return nil
 }
 
@@ -502,7 +521,7 @@ func alterTable(q string, s *dbState) error {
 		rest = strings.TrimSpace(rest[len("ALTER COLUMN"):])
 		fields := strings.Fields(rest)
 		if len(fields) < 1 {
-			return fmt.Errorf("syntax error in ALTER COLUMN")
+			return errors.New("syntax error in ALTER COLUMN")
 		}
 		col := ts.column(fields[0])
 		if col == nil {
@@ -513,28 +532,30 @@ func alterTable(q string, s *dbState) error {
 				col.defaultNow = true
 			}
 		}
+
 		return nil
 	default:
-		return fmt.Errorf("syntax error in ALTER TABLE")
+		return errors.New("syntax error in ALTER TABLE")
 	}
 }
 
 func addColumn(ts *tableState, def string) error {
 	c := parseColDef(def)
 	if c == nil {
-		return fmt.Errorf("syntax error in ADD COLUMN")
+		return errors.New("syntax error in ADD COLUMN")
 	}
 	if ts.column(c.name) != nil {
 		return nil // IF NOT EXISTS semantics
 	}
 	ts.columns = append(ts.columns, c)
+
 	return nil
 }
 
 func createTableMem(q string, s *dbState) error {
 	m := reCreate.FindStringSubmatch(q)
 	if m == nil {
-		return fmt.Errorf("syntax error in CREATE TABLE")
+		return errors.New("syntax error in CREATE TABLE")
 	}
 	name := tableKey(m[1])
 
@@ -550,13 +571,14 @@ func createTableMem(q string, s *dbState) error {
 		}
 	}
 	s.tables[name] = ts
+
 	return nil
 }
 
 func selectRows(q string, s *dbState) (*queryResult, error) {
 	m := reSelect.FindStringSubmatch(q)
 	if m == nil {
-		return nil, fmt.Errorf("unsupported SELECT")
+		return nil, errors.New("unsupported SELECT")
 	}
 
 	selCols := splitTopLevel(m[1])
@@ -588,6 +610,7 @@ func selectRows(q string, s *dbState) (*queryResult, error) {
 		if orderDesc {
 			return -cmp
 		}
+
 		return cmp
 	})
 
@@ -617,8 +640,10 @@ func compareValues(a, b driver.Value) int {
 		if ai > bi {
 			return 1
 		}
+
 		return 0
 	}
+
 	return strings.Compare(fmt.Sprint(a), fmt.Sprint(b))
 }
 
@@ -633,5 +658,6 @@ func asInt(v driver.Value) (int64, bool) {
 	if _, err := fmt.Sscan(fmt.Sprint(v), &n); err == nil {
 		return n, true
 	}
+
 	return 0, false
 }

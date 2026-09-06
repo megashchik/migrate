@@ -35,6 +35,7 @@ func TestGetVersion(t *testing.T) {
 				if err == nil {
 					t.Fatalf("getVersion(%q) expected error, got %d", tt.filename, got)
 				}
+
 				return
 			}
 			if err != nil {
@@ -123,6 +124,7 @@ func mustGeneratePrefix(t *testing.T, dir, format string) string {
 	if err != nil {
 		t.Fatalf("generateVersionPrefix(format=%q) error: %v", format, err)
 	}
+
 	return prefix
 }
 

@@ -17,18 +17,20 @@ linters:
     - err113
     - exhaustive
     - exhaustruct
+    - exhaustruct_v5
+    - forbidigo
     - gochecknoglobals
     - gochecknoinits
     - gocognit
-    - godox
+    - gomodguard
     - interfacebloat
     - ireturn
     - maintidx
     - mnd
     - nestif
+    - noinlineerr
     - nonamedreturns
     - paralleltest
-    - perfsprint
     - protogetter
     - tagalign
     - tagliatelle
@@ -37,8 +39,7 @@ linters:
     - varnamelen
     - wrapcheck
     - wsl
-    - noctx
-    - forbidigo
+    - wsl_v5
 
   settings:
     cyclop:
@@ -55,13 +56,13 @@ linters:
           deny:
             - pkg: emperror.dev/errors
               desc: should be replaced by "github.com/pkg/errors"
-            - pkg: encoding/json
-              desc: use 'github.com/json-iterator/go' for better performance
     funlen:
       lines: 300
       statements: 170
     gocyclo:
       min-complexity: 90
+    goconst:
+      min-occurrences: 5
     gosec:
       excludes:
         - G115
@@ -85,9 +86,6 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    rules:
-      - path: (.+)\.go$
-        text: Using the variable on range scope .* in function literal
     paths:
       - ansible
       - charts
