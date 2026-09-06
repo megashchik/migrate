@@ -5,6 +5,7 @@ const (
 	CommandNew     = "new"
 	CommandList    = "list"
 	CommandLast    = "last"
+	CommandCheck   = "check"
 	CommandHelp    = "help"
 	CommandVersion = "version"
 )

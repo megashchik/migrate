@@ -40,24 +40,18 @@ func Up(c *config.Config) error {
 		insertTableQuery = fmt.Sprintf("INSERT INTO %s (version) VALUES ($1)", c.FullTableName)
 	}
 
-	files, err := filepath.Glob(c.Dir + "/*.sql")
+	migrations, err := getMigrationFiles(c.Dir)
 	if err != nil {
-		return fmt.Errorf("failed to get files: %w", err)
+		return err
+	}
+
+	if dupes := duplicateVersions(migrations); len(dupes) > 0 {
+		return fmt.Errorf("duplicate migration versions detected:\n%s\nresolve manually: rename or remove one of the files", strings.Join(dupes, "\n"))
 	}
 
 	err = createTable(db, c)
 	if err != nil {
 		return err
-	}
-
-	migrations := make([]fileVersion, 0, len(files))
-	for _, f := range files {
-		version, err := getVersion(f)
-		if err != nil {
-			return err
-		}
-
-		migrations = append(migrations, fileVersion{f, version})
 	}
 
 	slices.SortFunc(migrations, func(a fileVersion, b fileVersion) int {
@@ -274,4 +268,43 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 	}
 
 	return nil
+}
+
+// getMigrationFiles returns the migration files in dir with their versions.
+func getMigrationFiles(dir string) ([]fileVersion, error) {
+	files, err := filepath.Glob(dir + "/*.sql")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get files: %w", err)
+	}
+
+	migrations := make([]fileVersion, 0, len(files))
+	for _, f := range files {
+		version, err := getVersion(f)
+		if err != nil {
+			return nil, err
+		}
+
+		migrations = append(migrations, fileVersion{f, version})
+	}
+
+	return migrations, nil
+}
+
+// duplicateVersions returns a sorted list of versions that appear more than once.
+func duplicateVersions(migrations []fileVersion) []string {
+	byVersion := make(map[int64][]string)
+	for _, m := range migrations {
+		byVersion[m.version] = append(byVersion[m.version], m.file)
+	}
+
+	var dupes []string
+	for version, files := range byVersion {
+		if len(files) > 1 {
+			dupes = append(dupes, fmt.Sprintf("%d: %s", version, strings.Join(files, ", ")))
+		}
+	}
+
+	slices.Sort(dupes)
+
+	return dupes
 }

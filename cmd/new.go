@@ -59,7 +59,9 @@ func New(c *config.Config) error {
 func parseTimeVersion() (int64, error) {
 	const defaultTimeFormat = "20060102150405"
 
-	version, err := strconv.ParseInt(time.Now().Format(defaultTimeFormat), 10, 64)
+	now := time.Now()
+	ms := fmt.Sprintf("%03d", now.Nanosecond()/int(time.Millisecond))
+	version, err := strconv.ParseInt(now.Format(defaultTimeFormat)+ms, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse time, err: %w", err)
 	}

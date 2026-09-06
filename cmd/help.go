@@ -24,6 +24,7 @@ Database Commands (Require -conn or DATABASE_URL):
   last               Show the latest version number stored in the database
 
 Local Commands (No connection required):
+  check              Verify that no duplicate version numbers exist among the .sql files
   new <name>         Create a new numeric-prefixed migration file
                      Usage: migrate new <name> [flags]
                      Flags for 'new':
@@ -34,7 +35,7 @@ Supported Numeric Formats (-f):
   0                  Incremental: 000001, 000002 (Auto-padded to 6 digits)
   0000               Incremental: 0001, 0002 (Custom width by number of zeros)
   U                  Unix Epoch:  1736512272 (Total seconds)
-  T                  Timestamp:   20260110193112 (YYYYMMDDHHMMSS)
+  T                  Timestamp:   20260110193112000 (YYYYMMDDHHMMSSmmm)
 
 Note: If the generated version is less than or equal to the last version in the
 directory, it will be automatically incremented (last + 1) to ensure order.

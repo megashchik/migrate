@@ -7,7 +7,7 @@ A minimalist, CLI tool for PostgreSQL schema migrations written in Go.
 ## ✨ Key Features
 
 - **Pure SQL**: No specific markers like `-- migrate:up` required. If it's a valid SQL, it works.
-- **Flexible Versioning**: Supports Unix timestamps, `YYYYMMDD`, and incremental numbers (`000001`).
+- **Flexible Versioning**: Supports Unix timestamps, timestamps with millisecond precision, and incremental numbers (`000001`).
 - **Description Support**: Automatically extracts descriptions from SQL comments (`-- desc: text`) or filenames.
 - **Timestamps**: Automatically stores migration timestamps in the table if `-ts` flag is set on first run.
 - **Single Binary**: No dependencies. Built with Go standard library and `pq` driver.
@@ -30,7 +30,7 @@ migrate -conn "postgres://user:pass@localhost:5432/db_name?sslmode=disable"
 Create a new empty SQL file with a proper version prefix:
 ```bash
 migrate new create_users_table
-# Generates: ./migrations/20260109223005_create_users_table.sql
+# Generates: ./migrations/20260109223005123_create_users_table.sql
 ```
 
 3. Apply Migrations
@@ -79,6 +79,7 @@ docker run --rm \
 ⌨️ Advanced Commands  
 migrate list: Show all applied migrations.  
 migrate last: Display the latest applied version number.  
+migrate check: Fail if two .sql files share the same version number (CI-friendly).  
 migrate -extra: Show advanced flags (e.g., -short for INT4 version column).  
 
 🤝 Contributing

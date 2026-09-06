@@ -20,6 +20,8 @@ func main() {
 		err = cmd.List(c)
 	case config.CommandLast:
 		err = cmd.Last(c)
+	case config.CommandCheck:
+		err = cmd.Check(c)
 	case config.CommandUp:
 		err = cmd.Up(c)
 	case config.CommandHelp:
