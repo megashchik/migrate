@@ -84,7 +84,7 @@ func Up(c *config.Config) error {
 }
 
 // applyMigration applies migration from file.
-func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertTableQuery string, descriptionRegex *regexp.Regexp) error {
+func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertTableQuery string, descriptionRegex *regexp.Regexp) (err error) {
 	content, err := os.ReadFile(migration.file)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
@@ -96,13 +96,13 @@ func applyMigration(db *sql.DB, c *config.Config, migration fileVersion, insertT
 	}
 
 	defer func() {
-		err := tx.Rollback()
-		if errors.Is(err, sql.ErrTxDone) {
+		rollbackErr := tx.Rollback()
+		if errors.Is(rollbackErr, sql.ErrTxDone) {
 			return
 		}
 
-		if err != nil {
-			log.Printf("failed to rollback tx: %s", err)
+		if rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to rollback tx: %w", rollbackErr))
 		}
 	}()
 
@@ -234,12 +234,14 @@ func createTable(db *sql.DB, c *config.Config) (err error) {
 	}
 
 	defer func() {
-		txErr := tx.Rollback()
-		if errors.Is(txErr, sql.ErrTxDone) {
+		rollbackErr := tx.Rollback()
+		if errors.Is(rollbackErr, sql.ErrTxDone) {
 			return
 		}
 
-		err = errors.Join(err, txErr)
+		if rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to rollback tx of create table: %w", rollbackErr))
+		}
 	}()
 
 	_, err = tx.Exec(createTableQuery)
