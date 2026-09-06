@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/megashchik/migrate/config"
 )
@@ -66,26 +65,4 @@ func getQuery(c *config.Config) (string, []any, error) {
 	default:
 		return "", nil, fmt.Errorf("unknown command: %s", c.Command)
 	}
-}
-
-type values struct {
-	Version     *int64
-	Description *string
-	Ts          *time.Time
-}
-
-func (v values) values() []any {
-	result := make([]any, 0, 3)
-
-	result = append(result, &v.Version)
-
-	if v.Description != nil {
-		result = append(result, &v.Description)
-	}
-
-	if v.Ts != nil {
-		result = append(result, &v.Ts)
-	}
-
-	return result
 }
