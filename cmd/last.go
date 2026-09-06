@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/megashchik/migrate/config"
 )
@@ -32,7 +34,7 @@ func Last(c *config.Config) error {
 		return fmt.Errorf("failed to get last version: %w", err)
 	}
 
-	fmt.Println(values...)
+	fmt.Println(formatRow(values))
 
 	return nil
 }
@@ -65,4 +67,32 @@ func getQuery(c *config.Config) (string, []any, error) {
 	default:
 		return "", nil, fmt.Errorf("unknown command: %s", c.Command)
 	}
+}
+
+// formatRow joins scanned migration values into a readable line.
+func formatRow(values []any) string {
+	parts := make([]string, 0, len(values))
+	for _, v := range values {
+		parts = append(parts, formatValue(v))
+	}
+
+	return strings.Join(parts, "  ")
+}
+
+// formatValue returns a readable representation of a scanned migration column.
+func formatValue(v any) string {
+	switch t := v.(type) {
+	case *int64:
+		return strconv.FormatInt(*t, 10)
+	case *sql.NullString:
+		if t.Valid {
+			return t.String
+		}
+	case *sql.NullTime:
+		if t.Valid {
+			return t.Time.UTC().Format(time.RFC3339)
+		}
+	}
+
+	return "-"
 }

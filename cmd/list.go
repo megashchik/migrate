@@ -35,7 +35,7 @@ func List(c *config.Config) error {
 			return fmt.Errorf("failed to read row, err: %w", err)
 		}
 
-		fmt.Println(values...)
+		fmt.Println(formatRow(values))
 
 		found = true
 	}
