@@ -43,7 +43,7 @@ migrate -dir ./sql_migrations
 | Flag  | ENV Variable | Default      | Description                             |
 | ----- | ------------ | ------------ | --------------------------------------- |
 | -conn | DATABASE_URL | -	          | PostgreSQL connection string            |
-| -dir  |	-            | ./migrations	| ./migrations Path to your .sql files    |
+| -dir  |	-            | ./migrations	| Path to your .sql files                 |
 | -f	  | -            | T            | Prefix format (0, 000, T, U)            |
 | -desc	| -            | false        | Enable/disable description column in DB |
 
