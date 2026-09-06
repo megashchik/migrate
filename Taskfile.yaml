@@ -1,0 +1,43 @@
+version: '3'
+
+vars:
+  BIN: migrate
+
+tasks:
+  default:
+    desc: Vet and run the full test suite
+    cmds:
+      - task: test
+
+  test:
+    desc: Vet and run all tests (unit + in-memory DB, no external services needed)
+    cmds:
+      - go vet ./...
+      - go test ./... -count=1
+
+  test-verbose:
+    desc: Run all tests with verbose output
+    cmds:
+      - go test ./... -count=1 -v
+
+  test-coverage:
+    desc: Run tests and print statement coverage
+    cmds:
+      - go test ./cmd -count=1 -coverprofile=coverage.out
+      - go tool cover -func=coverage.out | tail -1
+      - rm -f coverage.out
+
+  build:
+    desc: Build the binary
+    cmds:
+      - go build -o '{{.BIN}}' .
+
+  check:
+    desc: Fail on duplicate migration versions (CI gate)
+    cmds:
+      - go run . check
+
+  test-integration:
+    desc: Run the integration test suite against a real PostgreSQL in Docker
+    cmds:
+      - bash ./test-integration.sh
